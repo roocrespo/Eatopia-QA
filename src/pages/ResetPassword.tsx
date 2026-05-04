@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Lock, ArrowLeft, Save, CheckCircle, AlertCircle } from 'lucide-react';
+import { Lock, Save, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -32,7 +32,7 @@ export default function ResetPassword() {
       });
 
       if (error) throw error;
-      
+
       setSuccess(true);
       setTimeout(() => navigate('/login'), 3000);
     } catch (err: any) {
