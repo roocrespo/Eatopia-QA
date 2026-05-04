@@ -65,7 +65,7 @@ export default function ResetPassword() {
         .from('colaboradores')
         .update({ 
           senha_definida: true,
-          status_convite: 'aceito'
+          status_convite: 'vinculado'
         })
         .or(`user_id.eq.${userId},email.eq.${userEmail}`);
       

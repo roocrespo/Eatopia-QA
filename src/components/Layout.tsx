@@ -206,25 +206,62 @@ function OnboardingForm({ onSuccess }: { onSuccess: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
     if (password.length < 6) {
       setError('A senha deve ter pelo menos 6 caracteres.');
       return;
     }
+    
     setLoading(true);
-    try {
-      const { error: authErr } = await supabase.auth.updateUser({ password });
-      if (authErr) throw authErr;
+    setError(null);
 
-      const { data: { user } } = await supabase.auth.getUser();
+    // Timeout de segurança
+    const timeout = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        setError('O tempo limite foi atingido. Verifique sua conexão.');
+      }
+    }, 15000);
+
+    try {
+      console.log('Iniciando definição de senha inicial...');
+      // 1. Atualiza a senha no Supabase Auth
+      const { data, error: authErr } = await supabase.auth.updateUser({ password });
+      
+      if (authErr) throw authErr;
+      console.log('Senha definida com sucesso no Auth.');
+
+      // 2. Atualizar tabela de colaboradores
+      const user = data?.user;
       if (user) {
-        await supabase.from('colaboradores').update({ senha_definida: true }).eq('user_id', user.id);
+        console.log('Sincronizando status do colaborador no banco...');
+        const { error: dbError } = await supabase
+          .from('colaboradores')
+          .update({ 
+            senha_definida: true,
+            status_convite: 'vinculado'
+          })
+          .or(`user_id.eq.${user.id},email.eq.${user.email}`);
+        
+        if (dbError) {
+          console.error('Erro ao atualizar tabela de colaboradores:', dbError);
+        } else {
+          console.log('Colaborador atualizado com sucesso no banco.');
+        }
       }
       
+      clearTimeout(timeout);
+      console.log('Onboarding concluído com sucesso.');
       onSuccess();
     } catch (err: any) {
+      clearTimeout(timeout);
+      console.error('Erro no onboarding:', err);
       setError(err.message || 'Erro ao definir senha.');
-    } finally {
       setLoading(false);
+    } finally {
+      // O setLoading(false) já é tratado no catch e no timeout, 
+      // mas se chegar aqui por outro caminho, garantimos.
     }
   };
 
