@@ -163,7 +163,7 @@ export default function Layout() {
             <h2 style={{ marginBottom: '0.5rem' }}>Bem-vindo, {userData?.name}!</h2>
             <p style={{ marginBottom: '2rem', fontSize: '0.9rem' }}>Este é seu primeiro acesso. Para sua segurança, cadastre uma senha para acessos futuros.</p>
             
-            <OnboardingForm />
+            <OnboardingForm onSuccess={() => setShowOnboarding(false)} />
           </div>
         </div>
       )}
@@ -196,7 +196,7 @@ export default function Layout() {
   );
 }
 
-function OnboardingForm() {
+function OnboardingForm({ onSuccess }: { onSuccess: () => void }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -232,11 +232,11 @@ function OnboardingForm() {
       // 2. A tabela de colaboradores será atualizada automaticamente por um Trigger no banco de dados!
       
       clearTimeout(timeout);
-      console.log('Onboarding concluído. Recarregando página...');
+      console.log('Onboarding concluído. Fechando modal...');
       
-      // Refresh na tela para fechar o modal e atualizar estado global
+      // Fecha o modal imediatamente no frontend
       setLoading(false);
-      window.location.reload();
+      onSuccess();
     } catch (err: any) {
       clearTimeout(timeout);
       console.error('Erro no onboarding:', err);
