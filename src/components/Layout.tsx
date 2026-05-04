@@ -163,10 +163,7 @@ export default function Layout() {
             <h2 style={{ marginBottom: '0.5rem' }}>Bem-vindo, {userData?.name}!</h2>
             <p style={{ marginBottom: '2rem', fontSize: '0.9rem' }}>Este é seu primeiro acesso. Para sua segurança, cadastre uma senha para acessos futuros.</p>
             
-            <OnboardingForm onSuccess={() => {
-              setShowOnboarding(false);
-              setUserData(prev => prev ? { ...prev, senha_definida: true } : null);
-            }} />
+            <OnboardingForm />
           </div>
         </div>
       )}
@@ -199,7 +196,7 @@ export default function Layout() {
   );
 }
 
-function OnboardingForm({ onSuccess }: { onSuccess: () => void }) {
+function OnboardingForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
