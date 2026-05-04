@@ -224,29 +224,12 @@ function OnboardingForm() {
     try {
       console.log('Iniciando definição de senha inicial...');
       // 1. Atualiza a senha no Supabase Auth
-      const { data, error: authErr } = await supabase.auth.updateUser({ password });
+      const { error: authErr } = await supabase.auth.updateUser({ password });
       
       if (authErr) throw authErr;
       console.log('Senha definida com sucesso no Auth.');
 
-      // 2. Atualizar tabela de colaboradores
-      const user = data?.user;
-      if (user) {
-        console.log('Sincronizando status do colaborador no banco...');
-        const { error: dbError } = await supabase
-          .from('colaboradores')
-          .update({ 
-            senha_definida: true,
-            status_convite: 'vinculado'
-          })
-          .eq('user_id', user.id);
-        
-        if (dbError) {
-          console.error('Erro ao atualizar tabela de colaboradores:', dbError);
-        } else {
-          console.log('Colaborador atualizado com sucesso no banco.');
-        }
-      }
+      // 2. A tabela de colaboradores será atualizada automaticamente por um Trigger no banco de dados!
       
       clearTimeout(timeout);
       console.log('Onboarding concluído. Recarregando página...');
