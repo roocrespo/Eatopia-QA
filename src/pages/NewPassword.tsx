@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Lock, Save, CheckCircle } from 'lucide-react';
+import { Lock, Save, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function NewPassword() {
   const [password, setPassword] = useState('');
@@ -12,20 +12,26 @@ export default function NewPassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let timer: number;
-    if (success && countdown > 0) {
+    let timer: number | undefined;
+    if (success) {
       timer = window.setInterval(() => {
-        setCountdown((prev) => prev - 1);
+        setCountdown(c => c - 1);
       }, 1000);
-    } else if (success && countdown === 0) {
-      window.location.href = '/'; // Força um reload global para o Layout e toda a aplicação recarregar o banco corretamente
     }
-    return () => clearInterval(timer);
-  }, [success, countdown, navigate]);
+    return () => timer && clearInterval(timer);
+  }, [success]);
+
+  useEffect(() => {
+    if (success && countdown <= 0) {
+      // redirect to home and force reload so Layout refetches user/colaborador
+      window.location.href = '/';
+    }
+  }, [success, countdown]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
+    setError(null);
 
     if (password.length < 6) {
       setError('A senha deve ter pelo menos 6 caracteres.');
@@ -33,39 +39,61 @@ export default function NewPassword() {
     }
 
     setLoading(true);
-    setError(null);
 
     try {
-      console.log('Iniciando definição de nova senha...');
-      // 1. Pega usuário atual para termos certeza da sessão
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-      
-      if (!user) throw new Error('Sessão expirada. Volte e faça login novamente.');
+      // 1) confirm session
+      const { data: sessionResp } = await supabase.auth.getSession();
+      const user = sessionResp?.session?.user;
+      if (!user) throw new Error('Sessão inválida. Faça login novamente.');
 
-      // 2. Atualiza a senha no Supabase Auth
+      // 2) update password in Auth
       const { error: authErr } = await supabase.auth.updateUser({ password });
-      
       if (authErr) throw authErr;
-      
-      console.log('Senha definida com sucesso no Auth.');
-      
-      // 3. Atualizamos no front-end caso a Trigger do Supabase falhe ou demore.
-      // Atualizando diretamente na tabela como redundância segura:
-      console.log('Validando sincronização no banco...');
-      await supabase
+
+      // 3) poll colaboradores table for senha_definida
+      let synced = false;
+      const maxAttempts = 10; // ~10s
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const { data: row, error: selectErr } = await supabase
           .from('colaboradores')
-          .update({ 
-            senha_definida: true,
-            status_convite: 'vinculado'
-          })
-          .eq('user_id', user.id);
+          .select('senha_definida')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!selectErr && row?.senha_definida === true) {
+          synced = true;
+          break;
+        }
+
+        // wait 1s
+        await new Promise(res => setTimeout(res, 1000));
+      }
+
+      // 4) fallback: try update collaborators directly
+      if (!synced) {
+        try {
+          const { error: updErr } = await supabase
+            .from('colaboradores')
+            .update({ senha_definida: true, status_convite: 'vinculado' })
+            .eq('user_id', user.id);
+
+          if (!updErr) synced = true;
+        } catch (err) {
+          // ignore - RLS might block
+          console.warn('Fallback update falhou', err);
+        }
+      }
 
       setLoading(false);
       setSuccess(true);
+      setCountdown(5);
+
+      if (!synced) {
+        console.info('Trigger ainda não sincronizou, mas usuário autenticado. A tabela será atualizada em segundo plano.');
+      }
     } catch (err: any) {
-      console.error('Erro ao definir senha:', err);
-      setError(err.message || 'Erro ao comunicar com servidor.');
+      console.error('Erro ao definir nova senha:', err);
+      setError(err.message || 'Erro ao definir nova senha.');
       setLoading(false);
     }
   };
@@ -73,53 +101,44 @@ export default function NewPassword() {
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-color)', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
-          <Lock size={30} />
-        </div>
-        
         {!success ? (
           <>
-            <h2 style={{ marginBottom: '0.5rem', textAlign: 'center' }}>Bem-vindo!</h2>
-            <p style={{ marginBottom: '2rem', fontSize: '0.9rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-              Este é seu primeiro acesso. Para sua segurança, cadastre uma senha para acessos futuros.
-            </p>
-            
+            <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+              <div style={logoIconStyle}><Lock size={24} color="#fff" /></div>
+              <h2 style={{ margin: '0.5rem 0' }}>Bem-vindo!</h2>
+              <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Este é seu primeiro acesso. Cadastre uma senha para acessos futuros.</p>
+            </div>
+
             <form onSubmit={handleSubmit}>
-              <div className="form-group" style={{ textAlign: 'left' }}>
+              <div className="form-group">
                 <label className="form-label">Nova Senha</label>
-                <input 
-                  type="password" 
-                  className="form-input" 
-                  placeholder="Digite sua nova senha"
+                <input
+                  type="password"
+                  className="form-input"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
+                  placeholder="Digite sua nova senha"
                   required
                 />
               </div>
-              {error && <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '1rem', textAlign: 'center' }}>{error}</p>}
-              <button 
-                type="submit" 
-                disabled={loading} 
-                className="btn btn-primary" 
-                style={{ width: '100%', marginTop: '1rem', height: '45px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
-              >
-                <Save size={20} />
+
+              {error && (
+                <div style={{ marginTop: '1rem', color: 'var(--danger)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <AlertCircle /> <span>{error}</span>
+                </div>
+              )}
+
+              <button type="submit" disabled={loading} className="btn btn-primary" style={{ marginTop: '1.25rem', width: '100%', height: 44 }}>
                 {loading ? 'Salvando...' : 'Salvar Senha'}
               </button>
             </form>
           </>
         ) : (
           <div style={{ textAlign: 'center' }}>
-            <div style={{ color: 'var(--success)', marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}>
-              <CheckCircle size={48} />
-            </div>
-            <h3 style={{ marginBottom: '1rem' }}>Nova senha salva com sucesso!</h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-              A sua conta foi vinculada e está pronta para uso.
-            </p>
-            <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
-              Redirecionando em {countdown}...
-            </div>
+            <div style={{ marginBottom: '1rem', color: 'var(--success)' }}><CheckCircle size={40} /></div>
+            <h3>Nova senha salva com sucesso!</h3>
+            <p style={{ color: 'var(--text-secondary)' }}>Você será redirecionado para a página inicial em breve.</p>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>{countdown}</div>
           </div>
         )}
       </div>
@@ -132,17 +151,25 @@ const pageStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
-  backgroundColor: 'var(--bg-primary)',
-  padding: '2rem',
-  color: 'var(--text-primary)',
+  background: 'linear-gradient(135deg, #0B0C10 0%, #111218 50%, #0f0a1e 100%)',
 };
 
 const cardStyle: React.CSSProperties = {
-  maxWidth: '400px',
   width: '100%',
-  backgroundColor: 'var(--bg-secondary)',
-  padding: '2.5rem 2rem',
-  borderRadius: '12px',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-  border: '1px solid var(--border-color)',
+  maxWidth: 420,
+  padding: '2rem',
+  borderRadius: 12,
+  background: 'var(--bg-secondary)',
+  border: '1px solid var(--border-color)'
+};
+
+const logoIconStyle: React.CSSProperties = {
+  width: 56,
+  height: 56,
+  borderRadius: 9999,
+  background: 'rgba(59,130,246,0.12)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  margin: '0 auto'
 };
