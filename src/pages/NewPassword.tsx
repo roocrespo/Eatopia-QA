@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Lock, Save, CheckCircle, AlertCircle } from 'lucide-react';
+import { Lock, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function NewPassword() {
   const [password, setPassword] = useState('');
@@ -9,16 +8,10 @@ export default function NewPassword() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [countdown, setCountdown] = useState(5);
-  const navigate = useNavigate();
-
   useEffect(() => {
-    let timer: number | undefined;
-    if (success) {
-      timer = window.setInterval(() => {
-        setCountdown(c => c - 1);
-      }, 1000);
-    }
-    return () => timer && clearInterval(timer);
+    if (!success) return;
+    const timer = window.setInterval(() => setCountdown(c => c - 1), 1000);
+    return () => clearInterval(timer);
   }, [success]);
 
   useEffect(() => {
