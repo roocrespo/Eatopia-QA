@@ -82,30 +82,38 @@ function App() {
           element={<ResetPassword />}
         />
 
-        {/* Rotas protegidas */}
+        {/* Rotas protegidas (Inicial, colaboradores, Analise de tickets, base de conhecimento, Configurações de iA) */}
         <Route
           path="/"
           element={session ? <Layout /> : <Navigate to="/login" replace />}
         >
+          {/* Inicial / Dashboard */}
           <Route index element={<Dashboard />} />
           
           {/* Rotas restritas para administradores */}
-          {!(session as any)?.isCollaborator && (
+          {!(session as any)?.isCollaborator ? (
             <>
+              {/* Analise de tickets */}
               <Route path="analysis" element={<Analysis />} />
+              {/* colaboradores / Equipe */}
               <Route path="team" element={<Team />} />
+              {/* base de conhecimento */}
               <Route path="knowledge" element={<KnowledgeBase />} />
+              {/* Configurações de iA */}
               <Route path="settings" element={<Settings />} />
             </>
-          )}
-          
-          {/* Redirecionar colaboradores se tentarem acessar rotas restritas via URL */}
-          {(session as any)?.isCollaborator && (
-            <Route path="*" element={<Navigate to="/" replace />} />
+          ) : (
+            <>
+              {/* Se for colaborador, redirecionar tentativas de acesso a rotas admin para a home */}
+              <Route path="analysis" element={<Navigate to="/" replace />} />
+              <Route path="team" element={<Navigate to="/" replace />} />
+              <Route path="knowledge" element={<Navigate to="/" replace />} />
+              <Route path="settings" element={<Navigate to="/" replace />} />
+            </>
           )}
         </Route>
 
-        {/* Fallback */}
+        {/* Fallback para qualquer outra rota */}
         <Route path="*" element={<Navigate to={session ? '/' : '/login'} replace />} />
       </Routes>
     </BrowserRouter>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Users, BookOpen, Settings, Moon, Sun, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, BookOpen, Settings, Moon, Sun, ChevronLeft, ChevronRight, LogOut, User, Lock, X, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function Layout() {
@@ -14,7 +14,9 @@ export default function Layout() {
   });
   const [isCollaborator, setIsCollaborator] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState<{name: string, email: string} | null>(null);
+  const [userData, setUserData] = useState<{id: string, name: string, email: string, senha_definida?: boolean} | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
     document.body.classList.toggle('dark', isDarkMode);
@@ -34,17 +36,20 @@ export default function Layout() {
 
         const { data } = await supabase
           .from('colaboradores')
-          .select('id, nome')
+          .select('id, nome, senha_definida')
           .eq('user_id', session.user.id)
           .single();
         
         if (data) {
           setIsCollaborator(true);
-          setIsDarkMode(true); // Forçar modo escuro para colaboradores
+          setIsDarkMode(true);
           name = data.nome;
+          if (!data.senha_definida) {
+            setShowOnboarding(true);
+          }
         }
 
-        setUserData({ name, email });
+        setUserData({ id: session.user.id, name, email, senha_definida: data?.senha_definida });
       }
       setLoading(false);
     }
@@ -101,7 +106,11 @@ export default function Layout() {
         </nav>
         <div style={{ padding: isCollapsed ? '1.5rem 0' : '1.5rem 1rem', marginTop: 'auto', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.5rem', justifyContent: 'center' }}>
           {userData && !isCollapsed && (
-            <div style={{ padding: '0 0.5rem 1rem 0.5rem', borderBottom: '1px solid var(--border-color)', marginBottom: '0.5rem' }}>
+            <div 
+              onClick={() => setShowProfile(true)}
+              style={{ padding: '0.75rem 0.5rem', borderBottom: '1px solid var(--border-color)', marginBottom: '0.5rem', cursor: 'pointer', borderRadius: 'var(--radius-md)', transition: 'background 0.2s' }}
+              className="user-profile-hover"
+            >
               <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {userData.name}
               </div>
@@ -113,8 +122,9 @@ export default function Layout() {
           
           {userData && isCollapsed && (
             <div 
+              onClick={() => setShowProfile(true)}
               title={`${userData.name} (${userData.email})`}
-              style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-color)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', fontSize: '1rem', fontWeight: 700 }}
+              style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-color)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', fontSize: '1rem', fontWeight: 700, cursor: 'pointer' }}
             >
               {userData.name.charAt(0).toUpperCase()}
             </div>
@@ -142,9 +152,174 @@ export default function Layout() {
       <main className="main-content">
         <Outlet />
       </main>
+
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <div style={modalOverlayStyle}>
+          <div className="card" style={{ maxWidth: '400px', width: '90%', padding: '2rem', textAlign: 'center' }}>
+            <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-color)', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+              <Lock size={30} />
+            </div>
+            <h2 style={{ marginBottom: '0.5rem' }}>Bem-vindo, {userData?.name}!</h2>
+            <p style={{ marginBottom: '2rem', fontSize: '0.9rem' }}>Este é seu primeiro acesso. Para sua segurança, cadastre uma senha para acessos futuros.</p>
+            
+            <OnboardingForm onSuccess={() => {
+              setShowOnboarding(false);
+              setUserData(prev => prev ? { ...prev, senha_definida: true } : null);
+            }} />
+          </div>
+        </div>
+      )}
+
+      {/* Profile Modal */}
+      {showProfile && (
+        <div style={modalOverlayStyle} onClick={() => setShowProfile(false)}>
+          <div className="card" style={{ maxWidth: '500px', width: '90%', padding: '2rem', position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={() => setShowProfile(false)}
+              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            >
+              <X size={20} />
+            </button>
+            
+            <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <User size={24} color="var(--accent-color)" /> Minha Conta
+            </h2>
+            
+
+            <h3 style={{ fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Lock size={18} /> Alterar Senha
+            </h3>
+            
+            <ChangePasswordForm />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+function OnboardingForm({ onSuccess }: { onSuccess: () => void }) {
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password.length < 6) {
+      setError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error: authErr } = await supabase.auth.updateUser({ password });
+      if (authErr) throw authErr;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('colaboradores').update({ senha_definida: true }).eq('user_id', user.id);
+      }
+      
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message || 'Erro ao definir senha.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="form-group" style={{ textAlign: 'left' }}>
+        <label className="form-label">Nova Senha</label>
+        <input 
+          type="password" 
+          className="form-input" 
+          placeholder="Digite sua nova senha"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+        />
+      </div>
+      {error && <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '1rem' }}>{error}</p>}
+      <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', marginTop: '2rem', height: '45px' }}>
+        {loading ? 'Salvando...' : 'Finalizar Cadastro'}
+      </button>
+    </form>
+  );
+}
+
+function ChangePasswordForm() {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<{type: 'success' | 'error', text: string} | null>(null);
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMsg(null);
+    try {
+      // Nota: Supabase exige reautenticação ou senha atual para trocar senha se configurado.
+      // Se o usuário não tem senha (magic link), ele deve usar o onboarding.
+      // Aqui usamos a senha atual para trocar.
+      const { error } = await supabase.auth.updateUser({ 
+        password: newPassword 
+      });
+      if (error) throw error;
+      setMsg({ type: 'success', text: 'Senha atualizada com sucesso!' });
+      setCurrentPassword('');
+      setNewPassword('');
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'Erro ao atualizar senha.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleUpdate}>
+      <div className="form-group">
+        <label className="form-label">Senha Atual</label>
+        <input 
+          type="password" 
+          className="form-input" 
+          value={currentPassword}
+          onChange={e => setCurrentPassword(e.target.value)}
+          required
+        />
+      </div>
+      <div className="form-group">
+        <label className="form-label">Nova Senha</label>
+        <input 
+          type="password" 
+          className="form-input" 
+          value={newPassword}
+          onChange={e => setNewPassword(e.target.value)}
+          required
+        />
+      </div>
+      {msg && <p style={{ color: msg.type === 'success' ? 'var(--success)' : 'var(--danger)', fontSize: '0.8rem', marginBottom: '1rem' }}>{msg.text}</p>}
+      <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem', height: '45px' }}>
+        {loading ? 'Atualizando...' : 'Salvar Nova Senha'}
+      </button>
+    </form>
+  );
+}
+
+const modalOverlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0,0,0,0.8)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 1000,
+  backdropFilter: 'blur(4px)'
+};
 
 const sidebarStyle: React.CSSProperties = {
   backgroundColor: 'var(--bg-secondary)',

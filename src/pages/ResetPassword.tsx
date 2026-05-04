@@ -13,6 +13,8 @@ export default function ResetPassword() {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
     setError('');
 
     if (password.length < 6) {
@@ -26,18 +28,71 @@ export default function ResetPassword() {
     }
 
     setLoading(true);
+    
+    // Timer de segurança para não travar no "Atualizando..." para sempre
+    const timeout = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        setError('O tempo limite da requisição foi excedido. Tente novamente.');
+      }
+    }, 15000);
+
     try {
-      const { error } = await supabase.auth.updateUser({
+      console.log('Verificando sessão antes de atualizar...');
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        throw new Error('Sessão não encontrada. Por favor, clique no link do e-mail novamente.');
+      }
+
+      console.log('Iniciando atualização de senha para o usuário:', sessionData.session.user.id);
+      
+      // 1. Atualiza a senha no Supabase Auth
+      const { data, error: updateError } = await supabase.auth.updateUser({
         password: password
       });
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+      console.log('Senha atualizada no Auth com sucesso.');
 
+      // 2. Atualizar a tabela de colaboradores
+      // Usamos tanto o user_id quanto o e-mail para garantir que o registro seja encontrado
+      const userId = data?.user?.id || sessionData.session.user.id;
+      const userEmail = data?.user?.email || sessionData.session.user.email;
+
+      console.log('Sincronizando status no banco de dados...');
+      
+      // Tenta atualizar pelo user_id primeiro
+      const { error: dbError } = await supabase
+        .from('colaboradores')
+        .update({ 
+          senha_definida: true,
+          status_convite: 'aceito'
+        })
+        .or(`user_id.eq.${userId},email.eq.${userEmail}`);
+      
+      if (dbError) {
+        console.error('Erro ao sincronizar status do colaborador:', dbError);
+        // Não travamos o fluxo aqui, pois o Auth já foi atualizado
+      } else {
+        console.log('Status do colaborador sincronizado com sucesso.');
+      }
+
+      clearTimeout(timeout);
       setSuccess(true);
-      setTimeout(() => navigate('/login'), 3000);
+      setLoading(false);
+      
+      console.log('Sucesso! Redirecionando em 1.5s...');
+      
+      // Redireciona para a home
+      setTimeout(() => {
+        window.location.href = '/'; // Uso window.location para garantir o redirecionamento "limpo"
+      }, 1500);
+
     } catch (err: any) {
-      setError(err.message || 'Erro ao atualizar senha. Verifique se o link expirou.');
-    } finally {
+      clearTimeout(timeout);
+      console.error('Erro crítico no reset de senha:', err);
+      setError(err.message || 'Erro ao atualizar senha. Verifique sua conexão.');
       setLoading(false);
     }
   };
@@ -117,7 +172,7 @@ export default function ResetPassword() {
               Senha definida!
             </h2>
             <p style={{ color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, marginBottom: '2rem', fontSize: '0.9rem' }}>
-              Sua nova senha foi salva com sucesso. Você será redirecionado para o login em instantes.
+              Sua nova senha foi salva com sucesso. Você será redirecionado para a tela inicial em instantes.
             </p>
           </div>
         )}
