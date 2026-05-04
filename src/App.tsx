@@ -11,6 +11,7 @@ import Settings from './pages/Settings';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import NewPassword from './pages/NewPassword';
 
 function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -80,6 +81,10 @@ function App() {
         <Route
           path="/reset-password"
           element={<ResetPassword />}
+        />
+        <Route
+          path="/new-password"
+          element={session ? <NewPassword /> : <Navigate to="/login" replace />}
         />
 
         {/* Rotas protegidas (Inicial, colaboradores, Analise de tickets, base de conhecimento, Configurações de iA) */}

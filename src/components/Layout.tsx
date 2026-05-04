@@ -15,7 +15,6 @@ export default function Layout() {
   const [isCollaborator, setIsCollaborator] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<{id: string, name: string, email: string, senha_definida?: boolean} | null>(null);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
@@ -44,8 +43,10 @@ export default function Layout() {
           setIsCollaborator(true);
           setIsDarkMode(true);
           name = data.nome;
-          if (!data.senha_definida) {
-            setShowOnboarding(true);
+          
+          if (data.senha_definida === false) {
+            navigate('/new-password');
+            return;
           }
         }
 
@@ -153,21 +154,6 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      {/* Onboarding Modal */}
-      {showOnboarding && (
-        <div style={modalOverlayStyle}>
-          <div className="card" style={{ maxWidth: '400px', width: '90%', padding: '2rem', textAlign: 'center' }}>
-            <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-color)', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
-              <Lock size={30} />
-            </div>
-            <h2 style={{ marginBottom: '0.5rem' }}>Bem-vindo, {userData?.name}!</h2>
-            <p style={{ marginBottom: '2rem', fontSize: '0.9rem' }}>Este é seu primeiro acesso. Para sua segurança, cadastre uma senha para acessos futuros.</p>
-            
-            <OnboardingForm onSuccess={() => setShowOnboarding(false)} />
-          </div>
-        </div>
-      )}
-
       {/* Profile Modal */}
       {showProfile && (
         <div style={modalOverlayStyle} onClick={() => setShowProfile(false)}>
@@ -193,76 +179,6 @@ export default function Layout() {
         </div>
       )}
     </div>
-  );
-}
-
-function OnboardingForm({ onSuccess }: { onSuccess: () => void }) {
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loading) return;
-
-    if (password.length < 6) {
-      setError('A senha deve ter pelo menos 6 caracteres.');
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-
-    // Timeout de segurança
-    const timeout = setTimeout(() => {
-      if (loading) {
-        setLoading(false);
-        setError('O tempo limite foi atingido. Verifique sua conexão.');
-      }
-    }, 15000);
-
-    try {
-      console.log('Iniciando definição de senha inicial...');
-      // 1. Atualiza a senha no Supabase Auth
-      const { error: authErr } = await supabase.auth.updateUser({ password });
-      
-      if (authErr) throw authErr;
-      console.log('Senha definida com sucesso no Auth.');
-
-      // 2. A tabela de colaboradores será atualizada automaticamente por um Trigger no banco de dados!
-      
-      clearTimeout(timeout);
-      console.log('Onboarding concluído. Fechando modal...');
-      
-      // Fecha o modal imediatamente no frontend
-      setLoading(false);
-      onSuccess();
-    } catch (err: any) {
-      clearTimeout(timeout);
-      console.error('Erro no onboarding:', err);
-      setError(err.message || 'Erro ao definir senha.');
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <div className="form-group" style={{ textAlign: 'left' }}>
-        <label className="form-label">Nova Senha</label>
-        <input 
-          type="password" 
-          className="form-input" 
-          placeholder="Digite sua nova senha"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-        />
-      </div>
-      {error && <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '1rem' }}>{error}</p>}
-      <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', marginTop: '2rem', height: '45px' }}>
-        {loading ? 'Salvando...' : 'Finalizar Cadastro'}
-      </button>
-    </form>
   );
 }
 
