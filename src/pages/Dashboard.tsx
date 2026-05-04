@@ -17,6 +17,8 @@ export default function Dashboard() {
   const [startDate, endDate] = dateRange;
   const [selectedUser, setSelectedUser] = useState('all');
   const [colaboradores, setColaboradores] = useState<any[]>([]);
+  const [currentUserColabId, setCurrentUserColabId] = useState<string | null>(null);
+  const [isCollaborator, setIsCollaborator] = useState(false);
 
   const [metrics, setMetrics] = useState({
     totalAnalises: 0,
@@ -51,6 +53,22 @@ export default function Dashboard() {
   // Carregar os colaboradores apenas uma vez
   useEffect(() => {
     async function fetchColabs() {
+      const { data: { session } } = await supabase.auth.getSession();
+      let colabId = null;
+      if (session) {
+        const { data: colabData } = await supabase
+          .from('colaboradores')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (colabData) {
+          colabId = colabData.id;
+          setCurrentUserColabId(colabId);
+          setIsCollaborator(true);
+        }
+      }
+
       const { data } = await supabase.from('colaboradores').select('id, nome');
       if (data) setColaboradores(data);
     }
@@ -288,9 +306,17 @@ export default function Dashboard() {
                 style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.875rem' }}
               >
                 <option value="all">Todos os Agentes</option>
-                {colaboradores.map(c => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
-                ))}
+                {isCollaborator ? (
+                  // Se for colaborador, só mostra ele mesmo além de "Todos"
+                  colaboradores.filter(c => c.id === currentUserColabId).map(c => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))
+                ) : (
+                  // Se for admin, mostra todos
+                  colaboradores.map(c => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))
+                )}
               </select>
             </div>
           </div>
@@ -409,7 +435,15 @@ export default function Dashboard() {
                         {index + 1}
                       </div>
                       <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>{agente.nome}</div>
+                        <div style={{ 
+                          fontWeight: 600, 
+                          color: 'var(--text-primary)', 
+                          fontSize: '0.9rem',
+                          filter: isCollaborator && index > 1 && agente.id !== currentUserColabId ? 'blur(4px)' : 'none',
+                          userSelect: isCollaborator && index > 1 && agente.id !== currentUserColabId ? 'none' : 'auto'
+                        }}>
+                          {agente.nome}
+                        </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{agente.total} análises</div>
                       </div>
                     </div>
@@ -594,7 +628,15 @@ export default function Dashboard() {
                 <tbody>
                   {recentes.map((r, i) => (
                     <tr key={r.id} style={{ borderBottom: i < recentes.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
-                      <td style={{ padding: '1rem 0', fontWeight: 500, color: 'var(--text-primary)' }}>{r.nome}</td>
+                      <td style={{ 
+                        padding: '1rem 0', 
+                        fontWeight: 500, 
+                        color: 'var(--text-primary)',
+                        filter: isCollaborator && r.nome !== colaboradores.find(c => c.id === currentUserColabId)?.nome && ranking.findIndex(rk => rk.nome === r.nome) > 1 ? 'blur(4px)' : 'none',
+                        userSelect: isCollaborator && r.nome !== colaboradores.find(c => c.id === currentUserColabId)?.nome && ranking.findIndex(rk => rk.nome === r.nome) > 1 ? 'none' : 'auto'
+                      }}>
+                        {r.nome}
+                      </td>
                       <td style={{ padding: '1rem 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{r.data}</td>
                       <td style={{ padding: '1rem 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{r.marcas || '-'}</td>
                       <td style={{ padding: '1rem 0' }}>

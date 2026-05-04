@@ -17,13 +17,23 @@ function App() {
 
   useEffect(() => {
     // Verificar sessão atual ao montar
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const { data: colab } = await supabase.from('colaboradores').select('id').eq('user_id', session.user.id).single();
+        setSession({ ...session, isCollaborator: !!colab } as any);
+      } else {
+        setSession(null);
+      }
     });
 
     // Ouvir mudanças de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        const { data: colab } = await supabase.from('colaboradores').select('id').eq('user_id', session.user.id).single();
+        setSession({ ...session, isCollaborator: !!colab } as any);
+      } else {
+        setSession(null);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -78,10 +88,21 @@ function App() {
           element={session ? <Layout /> : <Navigate to="/login" replace />}
         >
           <Route index element={<Dashboard />} />
-          <Route path="analysis" element={<Analysis />} />
-          <Route path="team" element={<Team />} />
-          <Route path="knowledge" element={<KnowledgeBase />} />
-          <Route path="settings" element={<Settings />} />
+          
+          {/* Rotas restritas para administradores */}
+          {!(session as any)?.isCollaborator && (
+            <>
+              <Route path="analysis" element={<Analysis />} />
+              <Route path="team" element={<Team />} />
+              <Route path="knowledge" element={<KnowledgeBase />} />
+              <Route path="settings" element={<Settings />} />
+            </>
+          )}
+          
+          {/* Redirecionar colaboradores se tentarem acessar rotas restritas via URL */}
+          {(session as any)?.isCollaborator && (
+            <Route path="*" element={<Navigate to="/" replace />} />
+          )}
         </Route>
 
         {/* Fallback */}
