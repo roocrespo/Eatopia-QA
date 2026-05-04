@@ -252,16 +252,15 @@ function OnboardingForm({ onSuccess }: { onSuccess: () => void }) {
       }
       
       clearTimeout(timeout);
-      console.log('Onboarding concluído com sucesso.');
-      onSuccess();
+      console.log('Onboarding concluído. Recarregando página...');
+      
+      // Refresh na tela para fechar o modal e atualizar estado global
+      window.location.reload();
     } catch (err: any) {
       clearTimeout(timeout);
       console.error('Erro no onboarding:', err);
       setError(err.message || 'Erro ao definir senha.');
       setLoading(false);
-    } finally {
-      // O setLoading(false) já é tratado no catch e no timeout, 
-      // mas se chegar aqui por outro caminho, garantimos.
     }
   };
 
