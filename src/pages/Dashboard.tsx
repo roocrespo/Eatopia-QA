@@ -303,7 +303,7 @@ export default function Dashboard() {
               <select 
                 value={selectedUser} 
                 onChange={(e) => setSelectedUser(e.target.value)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.875rem' }}
+                style={{ background: 'var(--bg-secondary)', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.875rem', cursor: 'pointer' }}
               >
                 <option value="all">Todos os Agentes</option>
                 {isCollaborator ? (

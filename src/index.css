@@ -175,6 +175,17 @@ a:hover {
   resize: vertical;
 }
 
+select {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
 .flex-center {
   display: flex;
   align-items: center;

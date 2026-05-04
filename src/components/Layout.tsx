@@ -120,16 +120,14 @@ export default function Layout() {
             </div>
           )}
 
-          {!isCollaborator && (
-            <button 
-              onClick={toggleDarkMode} 
-              title={isDarkMode ? 'Modo Claro' : 'Modo Escuro'}
-              style={{ ...navItemStyle, width: '100%', justifyContent: isCollapsed ? 'center' : 'flex-start', padding: isCollapsed ? '0.75rem 0' : '0.75rem 1rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
-            >
-              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-              {!isCollapsed && <span>{isDarkMode ? 'Modo Claro' : 'Modo Escuro'}</span>}
-            </button>
-          )}
+          <button 
+            onClick={toggleDarkMode} 
+            title={isDarkMode ? 'Modo Claro' : 'Modo Escuro'}
+            style={{ ...navItemStyle, width: '100%', justifyContent: isCollapsed ? 'center' : 'flex-start', padding: isCollapsed ? '0.75rem 0' : '0.75rem 1rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
+          >
+            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            {!isCollapsed && <span>{isDarkMode ? 'Modo Claro' : 'Modo Escuro'}</span>}
+          </button>
           
           <button 
             onClick={handleLogout} 
