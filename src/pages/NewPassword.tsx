@@ -35,30 +35,37 @@ export default function NewPassword() {
     setLoading(true);
     setError(null);
 
-    const timeout = setTimeout(() => {
-      if (loading) {
-        setLoading(false);
-        setError('O tempo limite foi atingido. Verifique sua conexão.');
-      }
-    }, 15000);
-
     try {
       console.log('Iniciando definição de nova senha...');
-      // Atualiza a senha no Supabase Auth
+      // 1. Pega usuário atual para termos certeza da sessão
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      
+      if (!user) throw new Error('Sessão expirada. Volte e faça login novamente.');
+
+      // 2. Atualiza a senha no Supabase Auth
       const { error: authErr } = await supabase.auth.updateUser({ password });
       
       if (authErr) throw authErr;
       
       console.log('Senha definida com sucesso no Auth.');
-      // O trigger do lado do servidor cuidará de atualizar a tabela colaboradores.
       
-      clearTimeout(timeout);
+      // 3. Atualizamos no front-end caso a Trigger do Supabase falhe ou demore.
+      // Atualizando diretamente na tabela como redundância segura:
+      console.log('Validando sincronização no banco...');
+      await supabase
+          .from('colaboradores')
+          .update({ 
+            senha_definida: true,
+            status_convite: 'vinculado'
+          })
+          .eq('user_id', user.id);
+
       setLoading(false);
       setSuccess(true);
     } catch (err: any) {
-      clearTimeout(timeout);
       console.error('Erro ao definir senha:', err);
-      setError(err.message || 'Erro ao definir senha.');
+      setError(err.message || 'Erro ao comunicar com servidor.');
       setLoading(false);
     }
   };
