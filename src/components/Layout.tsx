@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Users, BookOpen, Settings, Moon, Sun, ChevronLeft, ChevronRight, LogOut, User, Lock, X, Eye, EyeOff } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, BookOpen, Settings, Moon, Sun, ChevronLeft, ChevronRight, LogOut, User, Lock, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function Layout() {
