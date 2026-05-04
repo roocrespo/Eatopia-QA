@@ -237,10 +237,9 @@ function OnboardingForm() {
           .from('colaboradores')
           .update({ 
             senha_definida: true,
-            status_convite: 'vinculado',
-            user_id: user.id // garante vinculação caso não haja
+            status_convite: 'vinculado'
           })
-          .eq('email', user.email);
+          .eq('user_id', user.id);
         
         if (dbError) {
           console.error('Erro ao atualizar tabela de colaboradores:', dbError);
@@ -253,7 +252,8 @@ function OnboardingForm() {
       console.log('Onboarding concluído. Recarregando página...');
       
       // Refresh na tela para fechar o modal e atualizar estado global
-      window.location.href = '/';
+      setLoading(false);
+      window.location.reload();
     } catch (err: any) {
       clearTimeout(timeout);
       console.error('Erro no onboarding:', err);
