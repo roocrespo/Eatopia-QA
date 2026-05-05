@@ -227,10 +227,25 @@ function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
     }
      console.log('Sessão OK, atualizando senha...');
 
-      const { error } = await supabase.auth.updateUser({ 
-        password: newPassword 
-      });
-      if (error) throw error;
+     // 🔥 força sessão atualizada
+await supabase.auth.refreshSession();
+
+// 🔥 chama update com proteção de timeout
+const result = await Promise.race([
+  supabase.auth.updateUser({ password: newPassword }),
+  new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Timeout na requisição')), 8000)
+  )
+]);
+
+// 🔥 valida resposta corretamente
+if (!result || typeof result !== 'object') {
+  throw new Error('Resposta inválida do servidor');
+}
+
+if ('error' in result && result.error) {
+  throw result.error;
+}
       console.log('ChangePasswordForm: senha atualizada com sucesso no Auth.');
      setMsg({ type: 'success', text: 'Senha atualizada com sucesso!' });
 
