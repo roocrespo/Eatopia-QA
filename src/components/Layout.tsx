@@ -210,8 +210,10 @@ function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setMsg(null);
+    console.log('ChangePasswordForm: iniciando atualização de senha...');
     try {
       // Nota: Supabase exige reautenticação ou senha atual para trocar senha se configurado.
       // Se o usuário não tem senha (magic link), ele deve usar o onboarding.
@@ -220,11 +222,21 @@ function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
         password: newPassword 
       });
       if (error) throw error;
+      console.log('ChangePasswordForm: senha atualizada com sucesso no Auth.');
       setMsg({ type: 'success', text: 'Senha atualizada com sucesso!' });
+      // reset campos
       setCurrentPassword('');
       setNewPassword('');
-      if (onSuccess) onSuccess();
+      // fecha modal imediatamente
+      if (onSuccess) {
+        try {
+          onSuccess();
+        } catch (e) {
+          console.warn('ChangePasswordForm: onSuccess threw:', e);
+        }
+      }
     } catch (err: any) {
+      console.error('ChangePasswordForm error:', err);
       setMsg({ type: 'error', text: err.message || 'Erro ao atualizar senha.' });
     } finally {
       setLoading(false);
@@ -276,6 +288,7 @@ function NewPasswordProfileForm({ onSuccess }: { onSuccess?: () => void }) {
 
     setLoading(true);
     setError(null);
+    console.log('NewPasswordProfileForm: iniciando definição de senha...');
     try {
       // garante sessão
       const { data: sessionResp } = await supabase.auth.getSession();
@@ -284,18 +297,27 @@ function NewPasswordProfileForm({ onSuccess }: { onSuccess?: () => void }) {
 
       const { error: authErr } = await supabase.auth.updateUser({ password });
       if (authErr) throw authErr;
+      console.log('NewPasswordProfileForm: senha atualizada no Auth.');
 
       // tentamos também garantir no colaboradores se possível (fallback)
       try {
-        await supabase.from('colaboradores').update({ senha_definida: true, status_convite: 'vinculado' }).eq('user_id', user.id);
+        const { error: updErr } = await supabase.from('colaboradores').update({ senha_definida: true, status_convite: 'vinculado' }).eq('user_id', user.id);
+        if (updErr) console.warn('NewPasswordProfileForm: fallback update error:', updErr);
+        else console.log('NewPasswordProfileForm: fallback update success');
       } catch (e) {
-        // ignore
+        console.warn('NewPasswordProfileForm: fallback update threw', e);
       }
 
-      setLoading(false);
-      if (onSuccess) onSuccess();
+      // reset field
+      setPassword('');
+      // fechar modal
+      if (onSuccess) {
+        try { onSuccess(); } catch (e) { console.warn('onSuccess threw', e); }
+      }
     } catch (err: any) {
+      console.error('NewPasswordProfileForm error:', err);
       setError(err.message || 'Erro ao definir senha.');
+    } finally {
       setLoading(false);
     }
   };
