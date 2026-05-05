@@ -26,71 +26,44 @@ export default function ResetPassword() {
     }
 
     setLoading(true);
-    
-    // Timer de segurança para não travar no "Atualizando..." para sempre
-    const timeout = setTimeout(() => {
-      if (loading) {
-        setLoading(false);
-        setError('O tempo limite da requisição foi excedido. Tente novamente.');
-      }
-    }, 15000);
-
     try {
       console.log('Verificando sessão antes de atualizar...');
       const { data: sessionData } = await supabase.auth.getSession();
-      
-      if (!sessionData.session) {
+      const session = sessionData?.session ?? null;
+      if (!session) {
         throw new Error('Sessão não encontrada. Por favor, clique no link do e-mail novamente.');
       }
 
-      console.log('Iniciando atualização de senha para o usuário:', sessionData.session.user.id);
+      console.log('Iniciando atualização de senha para o usuário:', session.user.id);
       
       // 1. Atualiza a senha no Supabase Auth
-      const { data, error: updateError } = await supabase.auth.updateUser({
-        password: password
-      });
-
+      const { data, error: updateError } = await supabase.auth.updateUser({ password: password });
       if (updateError) throw updateError;
       console.log('Senha atualizada no Auth com sucesso.');
 
-      // 2. Atualizar a tabela de colaboradores
-      // Usamos tanto o user_id quanto o e-mail para garantir que o registro seja encontrado
-      const userId = data?.user?.id || sessionData.session.user.id;
-      const userEmail = data?.user?.email || sessionData.session.user.email;
+      // 2. Atualizar a tabela de colaboradores (tentativa segura)
+      const userId = data?.user?.id || session.user.id;
+      const userEmail = data?.user?.email || session.user.email;
 
-      console.log('Sincronizando status no banco de dados...');
-      
-      // Tenta atualizar pelo user_id primeiro
-      const { error: dbError } = await supabase
-        .from('colaboradores')
-        .update({ 
-          senha_definida: true,
-          status_convite: 'vinculado'
-        })
-        .or(`user_id.eq.${userId},email.eq.${userEmail}`);
-      
-      if (dbError) {
-        console.error('Erro ao sincronizar status do colaborador:', dbError);
-        // Não travamos o fluxo aqui, pois o Auth já foi atualizado
-      } else {
-        console.log('Status do colaborador sincronizado com sucesso.');
+      try {
+        const { error: dbError } = await supabase
+          .from('colaboradores')
+          .update({ senha_definida: true, status_convite: 'vinculado' })
+          .or(`user_id.eq.${userId},email.eq.${userEmail}`);
+
+        if (dbError) console.error('Erro ao sincronizar status do colaborador:', dbError);
+        else console.log('Status do colaborador sincronizado com sucesso.');
+      } catch (err) {
+        console.error('Erro ao tentar sincronizar colaboradores:', err);
       }
 
-      clearTimeout(timeout);
       setSuccess(true);
-      setLoading(false);
-      
       console.log('Sucesso! Redirecionando em 1.5s...');
-      
-      // Redireciona para a home
-      setTimeout(() => {
-        window.location.href = '/'; // Uso window.location para garantir o redirecionamento "limpo"
-      }, 1500);
-
+      setTimeout(() => window.location.href = '/', 1500);
     } catch (err: any) {
-      clearTimeout(timeout);
       console.error('Erro crítico no reset de senha:', err);
       setError(err.message || 'Erro ao atualizar senha. Verifique sua conexão.');
+    } finally {
       setLoading(false);
     }
   };

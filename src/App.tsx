@@ -17,27 +17,58 @@ function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   useEffect(() => {
-    // Verificar sessão atual ao montar
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session) {
-        const { data: colab } = await supabase.from('colaboradores').select('id').eq('user_id', session.user.id).single();
-        setSession({ ...session, isCollaborator: !!colab } as any);
-      } else {
-        setSession(null);
-      }
-    });
+    let mounted = true;
+    let subscription: any = null;
 
-    // Ouvir mudanças de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        const { data: colab } = await supabase.from('colaboradores').select('id').eq('user_id', session.user.id).single();
-        setSession({ ...session, isCollaborator: !!colab } as any);
-      } else {
-        setSession(null);
-      }
-    });
+    const init = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const session = data?.session ?? null;
 
-    return () => subscription.unsubscribe();
+        if (!mounted) return;
+
+        if (session) {
+          try {
+            const { data: colab } = await supabase.from('colaboradores').select('id').eq('user_id', session.user.id).single();
+            if (!mounted) return;
+            setSession({ ...session, isCollaborator: !!colab } as any);
+          } catch (err) {
+            console.error('Error fetching collaborator on init:', err);
+            if (mounted) setSession({ ...session, isCollaborator: false } as any);
+          }
+        } else {
+          if (mounted) setSession(null);
+        }
+
+        // subscribe to auth changes
+        const sub = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+          try {
+            if (!mounted) return;
+            if (newSession) {
+              const { data: colab } = await supabase.from('colaboradores').select('id').eq('user_id', newSession.user.id).single();
+              if (!mounted) return;
+              setSession({ ...newSession, isCollaborator: !!colab } as any);
+            } else {
+              if (mounted) setSession(null);
+            }
+          } catch (err) {
+            console.error('Error in onAuthStateChange handler:', err);
+          }
+        });
+
+        subscription = (sub as any)?.data?.subscription ?? (sub as any)?.subscription ?? null;
+      } catch (err) {
+        console.error('Auth init error:', err);
+        if (mounted) setSession(null);
+      }
+    };
+
+    init();
+
+    return () => {
+      mounted = false;
+      try { subscription?.unsubscribe?.(); } catch (e) { /* ignore */ }
+    };
   }, []);
 
   // Enquanto verifica a sessão, mostra tela de loading
