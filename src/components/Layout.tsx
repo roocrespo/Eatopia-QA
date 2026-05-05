@@ -76,7 +76,7 @@ export default function Layout() {
         { path: '/settings', label: 'Configurações IA', icon: <Settings size={20} /> },
       ];
 
-  if (loading) return null;
+  if (loading) return <div>Carregando...</div>;
 
   return (
     <div className="app-container">
@@ -223,24 +223,21 @@ function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
       });
       if (error) throw error;
       console.log('ChangePasswordForm: senha atualizada com sucesso no Auth.');
-      setMsg({ type: 'success', text: 'Senha atualizada com sucesso!' });
-      // reset campos
-      setCurrentPassword('');
-      setNewPassword('');
-      // fecha modal imediatamente
-      if (onSuccess) {
-        try {
-          onSuccess();
-        } catch (e) {
-          console.warn('ChangePasswordForm: onSuccess threw:', e);
-        }
-      }
+     setMsg({ type: 'success', text: 'Senha atualizada com sucesso!' });
+
+// espera 500ms pra UX melhor + evitar race condition
+setTimeout(() => {
+  setCurrentPassword('');
+  setNewPassword('');
+  onSuccess?.();
+}, 500);
     } catch (err: any) {
       console.error('ChangePasswordForm error:', err);
       setMsg({ type: 'error', text: err.message || 'Erro ao atualizar senha.' });
     } finally {
       setLoading(false);
     }
+    console.log("finalizando fluxo");
   };
 
   return (
