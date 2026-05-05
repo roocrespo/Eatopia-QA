@@ -16,6 +16,7 @@ export default function Layout() {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<{id: string, name: string, email: string, senha_definida?: boolean} | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
 
   useEffect(() => {
     document.body.classList.toggle('dark', isDarkMode);
@@ -45,8 +46,8 @@ export default function Layout() {
           name = data.nome;
           
           if (data.senha_definida === false) {
-            navigate('/new-password');
-            return;
+            // mostra apenas um popup informativo pedindo para definir a senha via Perfil
+            setShowWelcomePopup(true);
           }
         }
 
@@ -174,7 +175,26 @@ export default function Layout() {
               <Lock size={18} /> Alterar Senha
             </h3>
             
-            <ChangePasswordForm />
+            {/* Se o usuário não definiu senha, mostramos apenas o campo de nova senha */}
+            {userData?.senha_definida === false ? (
+              <NewPasswordProfileForm onSuccess={() => setShowProfile(false)} />
+            ) : (
+              <ChangePasswordForm onSuccess={() => setShowProfile(false)} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Welcome popup shown on first access (dismissible) */}
+      {showWelcomePopup && (
+        <div style={welcomeOverlayStyle} onClick={() => setShowWelcomePopup(false)}>
+          <div style={welcomeCardStyle} onClick={e => e.stopPropagation()}>
+            <h2>Bem-vindo ao Eatopia QA</h2>
+            <p>Obrigado por acessar o sistema, {userData?.name}.</p>
+            <p style={{ marginTop: '0.5rem' }}>Como é seu primeiro acesso, é importante que crie uma senha. Abra o menu e clique em Minha Conta → Definir Senha.</p>
+            <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'center' }}>
+              <button className="btn" onClick={() => setShowWelcomePopup(false)}>Fechar</button>
+            </div>
           </div>
         </div>
       )}
@@ -182,7 +202,7 @@ export default function Layout() {
   );
 }
 
-function ChangePasswordForm() {
+function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -203,6 +223,7 @@ function ChangePasswordForm() {
       setMsg({ type: 'success', text: 'Senha atualizada com sucesso!' });
       setCurrentPassword('');
       setNewPassword('');
+      if (onSuccess) onSuccess();
     } catch (err: any) {
       setMsg({ type: 'error', text: err.message || 'Erro ao atualizar senha.' });
     } finally {
@@ -240,6 +261,59 @@ function ChangePasswordForm() {
   );
 }
 
+function NewPasswordProfileForm({ onSuccess }: { onSuccess?: () => void }) {
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading) return;
+    if (password.length < 6) {
+      setError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      // garante sessão
+      const { data: sessionResp } = await supabase.auth.getSession();
+      const user = sessionResp?.session?.user;
+      if (!user) throw new Error('Sessão inválida. Faça login novamente.');
+
+      const { error: authErr } = await supabase.auth.updateUser({ password });
+      if (authErr) throw authErr;
+
+      // tentamos também garantir no colaboradores se possível (fallback)
+      try {
+        await supabase.from('colaboradores').update({ senha_definida: true, status_convite: 'vinculado' }).eq('user_id', user.id);
+      } catch (e) {
+        // ignore
+      }
+
+      setLoading(false);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setError(err.message || 'Erro ao definir senha.');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="form-group">
+        <label className="form-label">Nova Senha</label>
+        <input type="password" className="form-input" value={password} onChange={e => setPassword(e.target.value)} required />
+      </div>
+      {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{error}</p>}
+      <button type="submit" className="btn btn-primary" disabled={loading} style={{ marginTop: '1rem' }}>
+        {loading ? 'Salvando...' : 'Salvar'}
+      </button>
+    </form>
+  );
+}
+
 const modalOverlayStyle: React.CSSProperties = {
   position: 'fixed',
   top: 0,
@@ -263,6 +337,25 @@ const sidebarStyle: React.CSSProperties = {
   top: 0,
   height: '100vh',
   overflowY: 'auto'
+};
+
+const welcomeOverlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,0.45)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 9999,
+};
+
+const welcomeCardStyle: React.CSSProperties = {
+  background: 'var(--bg-secondary)',
+  padding: '1.5rem',
+  borderRadius: 12,
+  maxWidth: 520,
+  color: 'var(--text-primary)',
+  border: '1px solid var(--border-color)'
 };
 
 const logoContainerStyle: React.CSSProperties = {
