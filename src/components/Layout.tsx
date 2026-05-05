@@ -355,17 +355,16 @@ function NewPasswordProfileForm({ onSuccess }: { onSuccess?: () => void }) {
     console.log('Senha atualizada via API');
 
     // 🔥 fallback no banco
-    await supabase
-      .from('colaboradores')
-      .update({
-        senha_definida: true,
-        status_convite: 'vinculado'
-      })
-      .eq('user_id', session.user.id);
+    try {
+      const { error: updateError } = await supabase
+        .from('colaboradores')
+        .update({ senha_definida: true, status_convite: 'vinculado' })
+        .eq('user_id', session.user.id);
 
-      if (updateError) {
-  console.warn('Erro ao atualizar colaborador:', updateError);
-}
+      if (updateError) console.warn('Erro ao atualizar colaborador:', updateError);
+    } catch (e) {
+      console.warn('Erro no fallback ao atualizar colaboradores:', e);
+    }
 
     // reset
     setPassword('');
