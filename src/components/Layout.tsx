@@ -218,6 +218,15 @@ function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
       // Nota: Supabase exige reautenticação ou senha atual para trocar senha se configurado.
       // Se o usuário não tem senha (magic link), ele deve usar o onboarding.
       // Aqui usamos a senha atual para trocar.
+
+       // 🔥 PASSO CRÍTICO
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError || !sessionData.session) {
+      throw new Error('Sessão inválida. Faça login novamente.');
+    }
+     console.log('Sessão OK, atualizando senha...');
+
       const { error } = await supabase.auth.updateUser({ 
         password: newPassword 
       });
@@ -225,19 +234,20 @@ function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
       console.log('ChangePasswordForm: senha atualizada com sucesso no Auth.');
      setMsg({ type: 'success', text: 'Senha atualizada com sucesso!' });
 
-// espera 500ms pra UX melhor + evitar race condition
+// espera 300ms pra UX melhor + evitar race condition
 setTimeout(() => {
   setCurrentPassword('');
   setNewPassword('');
   onSuccess?.();
-}, 500);
+}, 300);
     } catch (err: any) {
-      console.error('ChangePasswordForm error:', err);
+      console.error('ERRO REAL', err);
       setMsg({ type: 'error', text: err.message || 'Erro ao atualizar senha.' });
     } finally {
+      console.log("finalizando fluxo");
       setLoading(false);
     }
-    console.log("finalizando fluxo");
+    
   };
 
   return (
