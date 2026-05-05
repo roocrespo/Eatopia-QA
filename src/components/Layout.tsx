@@ -216,39 +216,50 @@ function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
 
   try {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-
     if (sessionError || !sessionData.session) {
       throw new Error('Sessão inválida. Faça login novamente.');
     }
 
-    // ❌ REMOVIDO: supabase.auth.refreshSession()
-    // Isso invalidava o token atual antes do updateUser conseguir usá-lo,
-    // causando o travamento indefinido.
+    const session = sessionData.session;
 
-    // ✅ Timeout de segurança: se updateUser não resolver em 10s, rejeita
-    const updatePromise = supabase.auth.updateUser({ password: newPassword });
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Tempo limite excedido. Tente novamente.')), 10000)
+    // ✅ Bypassa o SDK e chama a API REST diretamente
+    // O SDK trava por um bug de deadlock no _acquireLock ao salvar sessão
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/user`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ password: newPassword }),
+      }
     );
 
-    const { error } = await Promise.race([updatePromise, timeoutPromise]);
+    const result = await response.json();
 
-    if (error) throw error;
+    if (!response.ok) {
+      throw new Error(result.message || result.error_description || 'Erro ao atualizar senha.');
+    }
+
+    // Atualiza a sessão localmente com o novo token retornado
+    if (result.access_token) {
+      await supabase.auth.setSession({
+        access_token: result.access_token,
+        refresh_token: result.refresh_token ?? session.refresh_token,
+      });
+    }
 
     setMsg({ type: 'success', text: 'Senha atualizada com sucesso!' });
     setCurrentPassword('');
     setNewPassword('');
-
-    // ✅ Timeout movido para depois do setMsg, não antes — evita fechar
-    // o modal antes da mensagem de sucesso aparecer
-    setTimeout(() => {
-      onSuccess?.();
-    }, 1200);
+    setTimeout(() => onSuccess?.(), 1200);
 
   } catch (err: any) {
     setMsg({ type: 'error', text: err.message || 'Erro ao atualizar senha.' });
   } finally {
-    setLoading(false); // ✅ Agora sempre roda
+    setLoading(false); // ✅ Agora sempre executa
   }
 };
 
