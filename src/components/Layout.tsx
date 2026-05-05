@@ -299,48 +299,85 @@ function NewPasswordProfileForm({ onSuccess }: { onSuccess?: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loading) return;
-    if (password.length < 6) {
-      setError('A senha deve ter pelo menos 6 caracteres.');
-      return;
+  e.preventDefault();
+  if (loading) return;
+
+  if (password.length < 6) {
+    setError('A senha deve ter pelo menos 6 caracteres.');
+    return;
+  }
+
+  setLoading(true);
+  setError(null);
+
+  try {
+    // 🔥 pega sessão UMA VEZ só
+    const { data: sessionResp, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError || !sessionResp?.session) {
+      throw new Error('Sessão inválida. Faça login novamente.');
     }
 
-    setLoading(true);
-    setError(null);
-    console.log('NewPasswordProfileForm: iniciando definição de senha...');
-    try {
-      // garante sessão
-      const { data: sessionResp } = await supabase.auth.getSession();
-      const user = sessionResp?.session?.user;
-      if (!user) throw new Error('Sessão inválida. Faça login novamente.');
+    const session = sessionResp.session;
 
-      const { error: authErr } = await supabase.auth.updateUser({ password });
-      if (authErr) throw authErr;
-      console.log('NewPasswordProfileForm: senha atualizada no Auth.');
-
-      // tentamos também garantir no colaboradores se possível (fallback)
-      try {
-        const { error: updErr } = await supabase.from('colaboradores').update({ senha_definida: true, status_convite: 'vinculado' }).eq('user_id', user.id);
-        if (updErr) console.warn('NewPasswordProfileForm: fallback update error:', updErr);
-        else console.log('NewPasswordProfileForm: fallback update success');
-      } catch (e) {
-        console.warn('NewPasswordProfileForm: fallback update threw', e);
+    // 🔥 chamada direta na API
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/user`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ password }),
       }
+    );
 
-      // reset field
-      setPassword('');
-      // fechar modal
-      if (onSuccess) {
-        try { onSuccess(); } catch (e) { console.warn('onSuccess threw', e); }
-      }
-    } catch (err: any) {
-      console.error('NewPasswordProfileForm error:', err);
-      setError(err.message || 'Erro ao definir senha.');
-    } finally {
-      setLoading(false);
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.message ||
+        result.error_description ||
+        'Erro ao definir senha.'
+      );
     }
-  };
+
+    // 🔥 atualiza sessão local
+    if (result.access_token) {
+      await supabase.auth.setSession({
+        access_token: result.access_token,
+        refresh_token: result.refresh_token ?? session.refresh_token,
+      });
+    }
+
+    console.log('Senha atualizada via API');
+
+    // 🔥 fallback no banco
+    await supabase
+      .from('colaboradores')
+      .update({
+        senha_definida: true,
+        status_convite: 'vinculado'
+      })
+      .eq('user_id', session.user.id);
+
+      if (updateError) {
+  console.warn('Erro ao atualizar colaborador:', updateError);
+}
+
+    // reset
+    setPassword('');
+    onSuccess?.();
+
+  } catch (err: any) {
+    console.error(err);
+    setError(err.message || 'Erro ao definir senha.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <form onSubmit={handleSubmit}>
