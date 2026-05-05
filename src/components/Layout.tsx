@@ -209,51 +209,48 @@ function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const [msg, setMsg] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
   const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loading) return;
-    setLoading(true);
-    setMsg(null);
-    console.log('ChangePasswordForm: iniciando atualização de senha...');
-    try {
-      // Nota: Supabase exige reautenticação ou senha atual para trocar senha se configurado.
-      // Se o usuário não tem senha (magic link), ele deve usar o onboarding.
-      // Aqui usamos a senha atual para trocar.
+  e.preventDefault();
+  if (loading) return;
+  setLoading(true);
+  setMsg(null);
 
-       // 🔥 PASSO CRÍTICO
+  try {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
     if (sessionError || !sessionData.session) {
       throw new Error('Sessão inválida. Faça login novamente.');
     }
-     console.log('Sessão OK, atualizando senha...');
 
-     // 🔥 força sessão atualizada
-await supabase.auth.refreshSession();
+    // ❌ REMOVIDO: supabase.auth.refreshSession()
+    // Isso invalidava o token atual antes do updateUser conseguir usá-lo,
+    // causando o travamento indefinido.
 
-const { error } = await supabase.auth.updateUser({
-  password: newPassword
-});
+    // ✅ Timeout de segurança: se updateUser não resolver em 10s, rejeita
+    const updatePromise = supabase.auth.updateUser({ password: newPassword });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Tempo limite excedido. Tente novamente.')), 10000)
+    );
 
-if (error) throw error;
+    const { error } = await Promise.race([updatePromise, timeoutPromise]);
 
-      console.log('ChangePasswordForm: senha atualizada com sucesso no Auth.');
-     setMsg({ type: 'success', text: 'Senha atualizada com sucesso!' });
+    if (error) throw error;
 
-// espera 300ms pra UX melhor + evitar race condition
-setTimeout(() => {
-  setCurrentPassword('');
-  setNewPassword('');
-  onSuccess?.();
-}, 300);
-    } catch (err: any) {
-      console.error('ERRO REAL', err);
-      setMsg({ type: 'error', text: err.message || 'Erro ao atualizar senha.' });
-    } finally {
-      console.log("finalizando fluxo");
-      setLoading(false);
-    }
-    
-  };
+    setMsg({ type: 'success', text: 'Senha atualizada com sucesso!' });
+    setCurrentPassword('');
+    setNewPassword('');
+
+    // ✅ Timeout movido para depois do setMsg, não antes — evita fechar
+    // o modal antes da mensagem de sucesso aparecer
+    setTimeout(() => {
+      onSuccess?.();
+    }, 1200);
+
+  } catch (err: any) {
+    setMsg({ type: 'error', text: err.message || 'Erro ao atualizar senha.' });
+  } finally {
+    setLoading(false); // ✅ Agora sempre roda
+  }
+};
 
   return (
     <form onSubmit={handleUpdate}>
