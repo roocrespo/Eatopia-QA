@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Users, BookOpen, Settings, Moon, Sun, ChevronLeft, ChevronRight, LogOut, User, Lock, X } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, BookOpen, Settings, Moon, Sun, ChevronLeft, ChevronRight, LogOut, User, Lock, X, TrendingUp, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function Layout() {
@@ -71,6 +71,8 @@ export default function Layout() {
     : [
         { path: '/', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
         { path: '/analysis', label: 'Análise de Tickets', icon: <FileText size={20} /> },
+        { path: '/performance', label: 'Desempenho', icon: <TrendingUp size={20} /> },
+        { path: '/encantamento', label: 'Encantamento', icon: <Sparkles size={20} /> },
         { path: '/team', label: 'Equipe', icon: <Users size={20} /> },
         { path: '/knowledge', label: 'Base de Conhecimento', icon: <BookOpen size={20} /> },
         { path: '/settings', label: 'Configurações IA', icon: <Settings size={20} /> },

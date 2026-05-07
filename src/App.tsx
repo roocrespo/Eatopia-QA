@@ -5,6 +5,8 @@ import type { Session } from '@supabase/supabase-js';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Analysis from './pages/Analysis';
+import Performance from './pages/Performance';
+import Encantamento from './pages/Encantamento';
 import Team from './pages/Team';
 import KnowledgeBase from './pages/KnowledgeBase';
 import Settings from './pages/Settings';
@@ -131,20 +133,25 @@ function App() {
             <>
               {/* Analise de tickets */}
               <Route path="analysis" element={<Analysis />} />
+              {/* Desempenho */}
+              <Route path="performance" element={<Performance />} />
               {/* colaboradores / Equipe */}
               <Route path="team" element={<Team />} />
               {/* base de conhecimento */}
               <Route path="knowledge" element={<KnowledgeBase />} />
               {/* Configurações de iA */}
               <Route path="settings" element={<Settings />} />
+              <Route path="encantamento" element={<Encantamento />} />
             </>
           ) : (
             <>
               {/* Se for colaborador, redirecionar tentativas de acesso a rotas admin para a home */}
               <Route path="analysis" element={<Navigate to="/" replace />} />
+              <Route path="performance" element={<Navigate to="/" replace />} />
               <Route path="team" element={<Navigate to="/" replace />} />
               <Route path="knowledge" element={<Navigate to="/" replace />} />
               <Route path="settings" element={<Navigate to="/" replace />} />
+              <Route path="encantamento" element={<Navigate to="/" replace />} />
             </>
           )}
         </Route>
