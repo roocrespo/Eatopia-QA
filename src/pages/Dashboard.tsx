@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Activity, Users, FileText, TrendingUp, Award, Target, Brain, Loader2, MessageCircle, Phone, Clock, Star, Zap } from 'lucide-react';
+import { Activity, Users, TrendingUp, Target, Brain, Loader2, MessageCircle, Phone, Clock, Star, Zap } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, LineChart, Line, Legend } from 'recharts';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -52,7 +52,6 @@ export default function Dashboard() {
   const [latestCoach, setLatestCoach] = useState<any>(null);
   const [teamCoach, setTeamCoach] = useState<TeamCoachResult | null>(null);
   const [generatingTeamCoach, setGeneratingTeamCoach] = useState(false);
-  const [agentPosition, setAgentPosition] = useState<number | null>(null);
 
   // Operational metrics
   const [opMetrics, setOpMetrics] = useState({
@@ -160,13 +159,6 @@ export default function Dashboard() {
       })).sort((a, b) => b.media - a.media);
 
       const agenteDestaque = rankingArray.length > 0 ? rankingArray[0] : { nome: 'N/A', media: 0 };
-
-      if (selectedUser !== 'all') {
-        const pos = rankingArray.findIndex(r => r.id === selectedUser);
-        setAgentPosition(pos !== -1 ? pos + 1 : null);
-      } else {
-        setAgentPosition(null);
-      }
 
       const analises = selectedUser === 'all' ? allAnalises : allAnalises.filter(a => a.colaborador_id === selectedUser);
       

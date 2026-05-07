@@ -7,17 +7,16 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  Plus, X, Save, Loader2, CheckCircle, AlertCircle, Clock, Phone, Tag, FileText,
-  Calendar, GripVertical, ChevronDown, ChevronUp, Sparkles, Edit3, DollarSign,
-  TrendingUp, Users, Package, ShoppingCart, Info, LayoutDashboard, Kanban as KanbanIcon,
-  Filter, Download, ArrowRight, BarChart3, PieChart as PieChartIcon, History
+  Plus, X, Save, Loader2, CheckCircle, AlertCircle, Clock, Tag,
+  Calendar, GripVertical, Sparkles, Edit3, DollarSign,
+  TrendingUp, Package, LayoutDashboard, Kanban as KanbanIcon,
+  Filter, Download, ArrowRight, History
 } from 'lucide-react';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer, Cell, PieChart, Pie
+  Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { format, subDays, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format, subDays, parseISO } from 'date-fns';
 
 // Types
 // Types
@@ -1123,7 +1122,7 @@ function DashboardView({ stats, cards, marcas, origens }: any) {
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
                 <Tooltip 
-                  formatter={(val: number) => [`R$ ${val.toLocaleString('pt-BR')}`, 'Gasto']}
+                  formatter={(val: any) => [`R$ ${Number(val).toLocaleString('pt-BR')}`, 'Gasto']}
                   contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px' }}
                 />
                 <Bar dataKey="value" name="Valor Gasto" fill="#10B981" radius={[4, 4, 0, 0]} />
