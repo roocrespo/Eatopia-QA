@@ -34,6 +34,45 @@
   box-sizing: border-box;
 }
 
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E2E8F0;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #CBD5E1;
+}
+
+body.dark ::-webkit-scrollbar-thumb {
+  background: #1E293B;
+}
+
+body.dark ::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #E2E8F0 transparent;
+}
+
+body.dark * {
+  scrollbar-color: #1E293B transparent;
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--bg-primary);
@@ -78,14 +117,21 @@ a:hover {
 .app-container {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden; /* Prevent global horizontal scroll */
 }
 
 .main-content {
   flex: 1;
   padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
+  min-width: 0; /* Allow content to shrink and handle its own overflow */
+  margin: 0 auto;
+}
+
+.sidebar {
+  flex-shrink: 0 !important;
+  z-index: 50;
 }
 
 .page-title {

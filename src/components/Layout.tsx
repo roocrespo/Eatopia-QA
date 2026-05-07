@@ -416,7 +416,8 @@ const sidebarStyle: React.CSSProperties = {
   position: 'sticky',
   top: 0,
   height: '100vh',
-  overflowY: 'auto'
+  overflowY: 'auto',
+  flexShrink: 0
 };
 
 const welcomeOverlayStyle: React.CSSProperties = {
@@ -462,5 +463,7 @@ const navItemStyle: React.CSSProperties = {
   borderRadius: 'var(--radius-md)',
   textDecoration: 'none',
   fontWeight: 500,
-  transition: 'all 0.2s'
+  fontSize: '0.9rem',
+  transition: 'all 0.2s',
+  whiteSpace: 'nowrap'
 };

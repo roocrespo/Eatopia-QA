@@ -782,10 +782,14 @@ export default function Encantamento() {
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
-            <div style={{
-              display: 'flex', gap: '1rem', overflowX: 'auto', paddingBottom: '1rem',
-              minHeight: 'calc(100vh - 280px)',
-            }}>
+          <div style={{
+            width: '100%',
+            overflowX: 'auto',
+            paddingBottom: '1rem',
+            minHeight: 'calc(100vh - 280px)',
+            display: 'flex',
+            gap: '1rem',
+          }}>
               {COLUMNS.map(col => (
                 <KanbanColumn
                   key={col.id}
